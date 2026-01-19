@@ -1,15 +1,16 @@
 from mcp.server.fastmcp import FastMCP
 from opensearchpy import OpenSearch
-#from Knn.open_search_ingestion_pipeline import neural_search
-#from constants import MODEL_ID
-#from statics_methods import ClientFactory
+from client_ports_constants import OSC_PORT1
 
-mcp = FastMCP("Search logs for context in labeling new logs")
+#Constantes de configuracion
+PORT_MCP1=8001
+
+mcp = FastMCP("Search logs for context in labeling new logs", port=PORT_MCP1)
 
 
 # ------------- CONSTANTES AUXILIARES --------------
 
-MODEL_ID_FROM_FILE_PATH = "/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/Configuracion/MODEL_ID.txt"
+MODEL_ID_FROM_FILE_PATH = "/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/Configuracion/MODEL_ID_1.txt"
 MODEL_ID="Y4auzJoB8jvprHGJ2bFO"
 INDEX_NAME="russellmitchell-logs-cosine"
 
@@ -105,33 +106,16 @@ def neural_search(log_message : str, client : OpenSearch, model_id : str, source
 
 
 # ------------- Tool busqueda neuronal -------------
-"""
-args_schema_TOOL_search_logs = {
-    "type": "object",
-    "properties": {
-        "log_message": {
-            "type": "string",
-            "description": "the retrieved logs from this tool will be similiar to the one given as this parameter"
-        },
-        "source": {
-            "type": "string",
-            "description": "the source that generated the previous argument log_message"
-        }
-    },
-    "required": ["log_message"]
-}
-"""
 
 
 @mcp.tool(
         name="search_logs",
         description="Get retrieved similar logs from RAG, obtains similiar logs to the one given as the argument log_message from source",
-        #args_schema=args_schema_TOOL_search_logs
 )
 async def search_logs(log_message: str, source:str) -> str:
     """Get retrieved logs from RAG, obtains similiar logs to the one given as the argument log_message from source"""
 
-    clientOS = OpenSearch(hosts=[{'host': 'localhost', 'port': 9200}],
+    clientOS = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT1}],
                             http_auth=('admin', 'Developer@123'),
                             #http_auth=('admin', 'admin'),
                             use_ssl=True,
@@ -144,12 +128,7 @@ async def search_logs(log_message: str, source:str) -> str:
     return str_rag
 
 
-"""
-@mcp.tool()
-async def getWeather(message:str):
-    """"Get weather""""
-    return "Sunny"
-"""
+
 
 
 if __name__ == "__main__":

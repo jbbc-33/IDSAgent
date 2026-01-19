@@ -1,5 +1,7 @@
 # Constantes de configuracion
-URL_MCP_SERVER = "http://localhost:8000/mcp"
+MCP_PORT=8001 #Por defecto FastMCP expone su servicio en el puerto 8000
+URL_MCP_SERVER = "http://localhost:"+str(MCP_PORT)+"/mcp"
+#URL_MCP_SERVER = "http://localhost:8000/mcp"
 URL_API_OLLAMA_BASE = "http://localhost:11434"
 URL_API_OLLAMA_CHAT = "http://localhost:11434/api/chat"
 MODEL_OLLAMA = "qwen2.5:3b"

@@ -1,20 +1,25 @@
 from opensearchpy import OpenSearch
 import pandas as pd
 from opensearchpy import helpers
+import threading as th
+from client_ports_constants import *
 
 #---------Constantes-----------------------
 
 # Path to training CSV subset
 TRAIN_CSV = '/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/data/train-logs-dataset.csv'
+TRAIN_CSV_1 = "/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/data/1-train-logs-dataset.csv"
+TRAIN_CSV_2 = "/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/data/2-train-logs-dataset.csv"
 # Embedding vector size (MiniLM = 384 dims)
 VECTOR_SIZE = 384
 # OpenSearch index name for vectorized logs
 INDEX_NAME = "russellmitchell-logs-cosine"
 
+
 #---------Funciones Auxiliares ------------
 
 # Create the index with mapping for raw_message and embedding vector
-def create_index(client):
+def create_index(client : OpenSearch):
     mapping = {
         "settings": {
             "index.knn": "true",
@@ -104,24 +109,99 @@ def ingest_batches_from_csv_pipeline(data, client, batch_size=64):
 
 
 
+def setup(client : OpenSearch, train_path : str):
+    #create_index()
+    create_index(client)
+    train_df = pd.read_csv(train_path)
+    print("Training samples:", len(train_df))
+    print(train_df.head(5))
+    print(train_df["source"].value_counts())
+    # Ingest logs 
+    ingest_batches_from_csv_pipeline(train_df, client)
+    print("-----------INGESTION PROCESS FINNISHED UP SUCCESSFULLY -------------")
+
+
 # -----------Main Execution -------------------
 
-open_search_client = OpenSearch(hosts=[{'host': 'localhost', 'port': 9200}],
-                            http_auth=('admin', 'Developer@123'),
-                            #http_auth=('admin', 'admin'),
-                            use_ssl=True,
-                            #use_ssl=False,
-                            verify_certs=False,
-                            timeout=60)
 
-create_index(open_search_client)
-train_df = pd.read_csv(TRAIN_CSV)
-print("Training samples:", len(train_df))
-print(train_df.head(5))
-print(train_df["source"].value_counts())
-# Ingest logs 
-ingest_batches_from_csv_pipeline(train_df, open_search_client)
-print("-----------INGESTION PROCESS FINNISHED UP SUCCESSFULLY -------------")
-
+if __name__ == "__main__":
+    input_text = "Pulsar 1 ----> Ingerir solo 1 contenedor\nPulsar 2 ----> Ingerir 2 contenedores\nPulsar 3 ----> Ingerir 2 contenedores de manera concurrente\n"
+    opcion = input(input_text)
+    
+    if opcion == "1":
+        client1 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT1}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        setup(client=client1, train_path=TRAIN_CSV)
+    elif opcion == "2":
+        client1 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT1}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        client2 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT2}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        try:
+            setup(client=client1, train_path=TRAIN_CSV_1)
+        except Exception as e:
+            print(e)
+        try:
+            setup(client=client2, train_path=TRAIN_CSV_2)
+        except Exception as e:
+            print(e)
+    elif opcion == "3":
+        client1 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT1}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        client2 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT2}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        h1=th.Thread(target=setup, args=(client1, TRAIN_CSV_1))
+        h2 = th.Thread(target=setup, args=(client2, TRAIN_CSV_2))
+        h1.start()
+        h2.start()
+        h1.join()
+        h2.join()
+        print("\n\n LOGS INGERIDOS")
+    elif opcion == "11":
+        client1 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT1}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        setup(client=client1, train_path=TRAIN_CSV_1)
+    elif opcion == "22":
+        client2 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT2}],
+                                http_auth=('admin', 'Developer@123'),
+                                #http_auth=('admin', 'admin'),
+                                use_ssl=True,
+                                #use_ssl=False,
+                                verify_certs=False,
+                                timeout=60)
+        setup(client=client2, train_path=TRAIN_CSV_2)
+    else:
+        print("\nSelecciona una de las posibles opciones: 1 o 2\n")
+        exit(2)
 
 
