@@ -67,7 +67,12 @@ class GraphAgent:
                 }
             }
         )
-        tools = await clientMCP.get_tools()
+        tools=[]
+        try:
+            tools = await clientMCP.get_tools()
+        except Exception:
+            tools=[]
+            print("tools no disponibles")
         return tools
 
 
@@ -761,7 +766,7 @@ class GraphAgent:
         #self.graph = graph
         return graph
 
-
+#Funcion de prueba
 async def main2():
     
     llmController = LLMOllama(url = URL_API_OLLAMA_CHAT, model = MODEL_OLLAMA)
@@ -792,6 +797,6 @@ async def main2():
 
 
 
-asyncio.run(main2())
+#asyncio.run(main2())
 
 

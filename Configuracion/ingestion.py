@@ -109,7 +109,7 @@ def ingest_batches_from_csv_pipeline(data, client, batch_size=64):
 
 
 
-def setup(client : OpenSearch, train_path : str):
+def setup_ingestion(client : OpenSearch, train_path : str):
     #create_index()
     create_index(client)
     train_df = pd.read_csv(train_path)
@@ -136,7 +136,7 @@ if __name__ == "__main__":
                                 #use_ssl=False,
                                 verify_certs=False,
                                 timeout=60)
-        setup(client=client1, train_path=TRAIN_CSV)
+        setup_ingestion(client=client1, train_path=TRAIN_CSV)
     elif opcion == "2":
         client1 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT1}],
                                 http_auth=('admin', 'Developer@123'),
@@ -153,11 +153,11 @@ if __name__ == "__main__":
                                 verify_certs=False,
                                 timeout=60)
         try:
-            setup(client=client1, train_path=TRAIN_CSV_1)
+            setup_ingestion(client=client1, train_path=TRAIN_CSV_1)
         except Exception as e:
             print(e)
         try:
-            setup(client=client2, train_path=TRAIN_CSV_2)
+            setup_ingestion(client=client2, train_path=TRAIN_CSV_2)
         except Exception as e:
             print(e)
     elif opcion == "3":
@@ -175,8 +175,8 @@ if __name__ == "__main__":
                                 #use_ssl=False,
                                 verify_certs=False,
                                 timeout=60)
-        h1=th.Thread(target=setup, args=(client1, TRAIN_CSV_1))
-        h2 = th.Thread(target=setup, args=(client2, TRAIN_CSV_2))
+        h1=th.Thread(target=setup_ingestion, args=(client1, TRAIN_CSV_1))
+        h2 = th.Thread(target=setup_ingestion, args=(client2, TRAIN_CSV_2))
         h1.start()
         h2.start()
         h1.join()
@@ -190,7 +190,7 @@ if __name__ == "__main__":
                                 #use_ssl=False,
                                 verify_certs=False,
                                 timeout=60)
-        setup(client=client1, train_path=TRAIN_CSV_1)
+        setup_ingestion(client=client1, train_path=TRAIN_CSV_1)
     elif opcion == "22":
         client2 = OpenSearch(hosts=[{'host': 'localhost', 'port': OSC_PORT2}],
                                 http_auth=('admin', 'Developer@123'),
@@ -199,7 +199,7 @@ if __name__ == "__main__":
                                 #use_ssl=False,
                                 verify_certs=False,
                                 timeout=60)
-        setup(client=client2, train_path=TRAIN_CSV_2)
+        setup_ingestion(client=client2, train_path=TRAIN_CSV_2)
     else:
         print("\nSelecciona una de las posibles opciones: 1 o 2\n")
         exit(2)

@@ -33,7 +33,7 @@ def wait_for_task(task_id, client : OpenSearch):
 
         time.sleep(3)
 
-def setup(client : OpenSearch, path):
+def setup_pipeline(client : OpenSearch, path):
     model_group_id=""
     print("\nRegistrando model group")
     try:
@@ -144,7 +144,7 @@ if __name__ == "__main__":
             use_ssl=True,
             verify_certs=False
         )
-        setup(client1, MODEL_ID_PATH_1)
+        setup_pipeline(client1, MODEL_ID_PATH_1)
     elif opcion == "2":
         client1 = OpenSearch(
             hosts=[{"host": "localhost", "port": OSC_PORT1}],
@@ -158,8 +158,8 @@ if __name__ == "__main__":
             use_ssl=True,
             verify_certs=False
         )
-        setup(client1, MODEL_ID_PATH_1)
-        setup(client2, MODEL_ID_PATH_2)
+        setup_pipeline(client1, MODEL_ID_PATH_1)
+        setup_pipeline(client2, MODEL_ID_PATH_2)
     elif opcion == "3":
         client1 = OpenSearch(
             hosts=[{"host": "localhost", "port": OSC_PORT1}],
@@ -173,8 +173,8 @@ if __name__ == "__main__":
             use_ssl=True,
             verify_certs=False
         )
-        hilo1 = th.Thread(target=setup, args=(client1, MODEL_ID_PATH_1))
-        hilo2 = th.Thread(target=setup, args=(client2, MODEL_ID_PATH_2))
+        hilo1 = th.Thread(target=setup_pipeline, args=(client1, MODEL_ID_PATH_1))
+        hilo2 = th.Thread(target=setup_pipeline, args=(client2, MODEL_ID_PATH_2))
         hilo1.start()
         hilo2.start()
         hilo1.join()
@@ -187,7 +187,7 @@ if __name__ == "__main__":
             use_ssl=True,
             verify_certs=False
         )
-        setup(client1, MODEL_ID_PATH_1)
+        setup_pipeline(client1, MODEL_ID_PATH_1)
     elif opcion == "22":
         client1 = OpenSearch(
             hosts=[{"host": "localhost", "port": OSC_PORT2}],
@@ -195,7 +195,7 @@ if __name__ == "__main__":
             use_ssl=True,
             verify_certs=False
         )
-        setup(client1, MODEL_ID_PATH_2)
+        setup_pipeline(client1, MODEL_ID_PATH_2)
     else:
         print("\nSelecciona una de las posibles opciones\n")
         exit(2)

@@ -2,6 +2,9 @@ import logging
 
 from typing import Any
 from uuid import uuid4
+import pandas as pd
+import asyncio
+import json
 
 #from google.ai.generativelanguage_v1beta.types import Message, MessagePart
 import httpx
@@ -17,6 +20,23 @@ from a2a.types import (
 from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
 )
+
+PATH_TEST_CSV="/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/data/1-test-logs-dataset.csv"
+PATH_EVAL_CSV="/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/data/1-eval-logs-dataset.csv"
+
+#Valor para columnas faltantes de final test tras evaluar
+MISSING_DATA = "missing"
+#Keys del dataset final test
+CONFIDENT_INDEX = "confident_index"
+LLM_LABEL = "llm_label"
+REASON = "reason"
+LOG = "log_message"
+SOURCE = "source"
+LABEL = "label"
+
+#Constantes para saber si el agente a logrado clasificar
+ROLE_NODE_EVALUATOR_PHASE1_SUCCESS = "phase1"
+ROLE_NODE_EVALUATOR_PHASE2_SUCCESS = "phase2"
 
 URL_AGENT_SERVING='http://localhost:9999/'
 
@@ -78,27 +98,55 @@ async def main() -> None:
         )
         logger.info('A2AClient initialized.')
 
-    
-        send_message_payload: dict[str, Any] = {
-            'message': {
-                'role': 'user',
-                'parts': [
-                    {'kind':'text','text': f'{EXAMPLE_LOG}'},
-                ],
-                'messageId': uuid4().hex,
-            },
-        }
-        request = SendMessageRequest(
-            id=str(uuid4()), params=MessageSendParams(**send_message_payload)
-        )
 
-        response = await client.send_message(request)
-        print(response.model_dump(mode='json', exclude_none=True))
-        print("PARTE-----------------------------------")
-        print(response.model_dump(mode='json', exclude_none=True)["result"]["parts"][0]["data"])
+        #Index(['Unnamed: 0', 'log_message', 'source', 'label'], dtype='object')
+        test_data = pd.read_csv(PATH_TEST_CSV)
+        test_data = test_data.drop(columns=["Unnamed: 0"])
+        test_data[LLM_LABEL] = MISSING_DATA
+        test_data[CONFIDENT_INDEX] = MISSING_DATA
+        test_data[REASON] = MISSING_DATA
         
-        
+        for i, row in test_data.iterrows():      
 
+            send_message_payload: dict[str, Any] = {
+                'message': {
+                    'role': 'user',
+                    'parts': [
+                        {'kind':'text','text': f'{row[LOG]}'},
+                    ],
+                    'messageId': uuid4().hex,
+                },
+            }
+            request = SendMessageRequest(
+                id=str(uuid4()), params=MessageSendParams(**send_message_payload)
+            )
+
+            response = await client.send_message(request)
+
+            #print(response.model_dump(mode='json', exclude_none=True))
+            print("PARTE-----------------------------------")
+            print(response.model_dump(mode='json', exclude_none=True)["result"]["parts"][0]["data"])
+            
+            data=None
+            try:
+                mes = response.model_dump(mode='json', exclude_none=True)
+                role = mes["result"]["parts"][0]["data"]['role']
+                data = mes["result"]["parts"][0]["data"]['content']
+                if role != ROLE_NODE_EVALUATOR_PHASE1_SUCCESS and role != ROLE_NODE_EVALUATOR_PHASE2_SUCCESS:
+                    continue #Si el rol no es exitoso, nos indica que no ha podido clasificar bien el log actual y pasamos al siguiente
+                llm_label=data.get(LABEL, None)
+                if llm_label == None:
+                    continue #Si no hay label por parte del llm directamente no apuntamos resultados para el log actual y pasamos a la siguiente
+                row[LLM_LABEL] = llm_label
+                row[CONFIDENT_INDEX] = data.get('confident_index',MISSING_DATA)
+                row[REASON] = data.get('reason',MISSING_DATA)
+            except Exception as e:
+                print("No ha sido posible extraer el mensaje")
+
+        test_data.to_csv(PATH_EVAL_CSV)
+        """
+        {'role': 'phase1', 'content': {'label': 'normal_log', 'confident_index': 1.0, 'reason': 'The log details system disk I/O statistics and does not show any suspicious activity, indicating a normal operational event.'}}
+        """
         # Para mandar mensaje en modo streaming
         """
         streaming_request = SendStreamingMessageRequest(
@@ -110,10 +158,8 @@ async def main() -> None:
         async for chunk in stream_response:
             print(chunk.model_dump(mode='json', exclude_none=True))
         """
-        
+
 
 
 if __name__ == '__main__':
-    import asyncio
-
     asyncio.run(main())

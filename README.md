@@ -75,3 +75,9 @@ python __main__.py
 Esto levantara al segundo agente (por defecto en el archivo ids_graph.py ya lleva la consulta a un log de ejemplo, en la funcion main2() ).
 Este segundo agente es igual al primero, este paso es opcional ya que un agente es capaz de evaluar logs por si mismo, pero
 si hay mas agentes disponibles, en caso de que se vea precisado, puede consultarles para disponer de una segunda opinion.
+
+
+
+
+sudo usermod -aG docker $USER
+newgrp docker
