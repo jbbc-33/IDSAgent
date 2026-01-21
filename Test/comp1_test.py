@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import logging
 
 from typing import Any
@@ -100,11 +101,12 @@ async def main() -> None:
 
 
         #Index(['Unnamed: 0', 'log_message', 'source', 'label'], dtype='object')
-        test_data = pd.read_csv(PATH_TEST_CSV)
-        test_data = test_data.drop(columns=["Unnamed: 0"])
-        test_data[LLM_LABEL] = MISSING_DATA
-        test_data[CONFIDENT_INDEX] = MISSING_DATA
-        test_data[REASON] = MISSING_DATA
+        test_data = pd.read_csv(PATH_TEST_CSV, index_col=0)
+        #test_data = test_data.drop(columns=["Unnamed: 0"])
+        #test_data = test_data.reset_index(drop=True)
+        test_data[LLM_LABEL] = pd.Series(pd.NA, index=test_data.index, dtype="string")
+        test_data[CONFIDENT_INDEX] = pd.Series(pd.NA, index=test_data.index, dtype="Float64")
+        test_data[REASON] = pd.Series(pd.NA, index=test_data.index, dtype="string")
         
         for i, row in test_data.iterrows():      
 
@@ -122,43 +124,53 @@ async def main() -> None:
             )
 
             response = await client.send_message(request)
-
-            #print(response.model_dump(mode='json', exclude_none=True))
-            print("PARTE-----------------------------------")
-            print(response.model_dump(mode='json', exclude_none=True)["result"]["parts"][0]["data"])
             
             data=None
             try:
                 mes = response.model_dump(mode='json', exclude_none=True)
                 role = mes["result"]["parts"][0]["data"]['role']
                 data = mes["result"]["parts"][0]["data"]['content']
+                print("PARTE-----------------------------------")
+                print(data)
                 if role != ROLE_NODE_EVALUATOR_PHASE1_SUCCESS and role != ROLE_NODE_EVALUATOR_PHASE2_SUCCESS:
                     continue #Si el rol no es exitoso, nos indica que no ha podido clasificar bien el log actual y pasamos al siguiente
-                llm_label=data.get(LABEL, None)
+                llm_label=data.get('label', None)
                 if llm_label == None:
                     continue #Si no hay label por parte del llm directamente no apuntamos resultados para el log actual y pasamos a la siguiente
-                row[LLM_LABEL] = llm_label
-                row[CONFIDENT_INDEX] = data.get('confident_index',MISSING_DATA)
-                row[REASON] = data.get('reason',MISSING_DATA)
+                try:
+                    llm_label = str(llm_label)
+                    test_data.loc[i, LLM_LABEL] = llm_label
+                except Exception:
+                    continue #Si no podemos convertir el label a cadena no seguimos analizando
+                try:
+                    conf_index = data.get('confident_index',MISSING_DATA)
+                    if conf_index != MISSING_DATA:
+                        conf_index = float(conf_index)
+                        test_data.loc[i, CONFIDENT_INDEX] = conf_index
+                    else:
+                        test_data.loc[i, CONFIDENT_INDEX] = pd.NA
+                except Exception:
+                    test_data.loc[i, CONFIDENT_INDEX] = pd.NA
+                try:
+                    reason = data.get('reason',MISSING_DATA)
+                    if reason != MISSING_DATA:
+                        reason = str(reason)
+                        test_data.loc[i, REASON] = reason
+                    else:
+                        test_data.loc[i, REASON] = pd.NA
+                except Exception:
+                    test_data.loc[i, REASON] = pd.NA
+                
+                print("CAMBIO REGISTRADO")
             except Exception as e:
                 print("No ha sido posible extraer el mensaje")
 
         test_data.to_csv(PATH_EVAL_CSV)
+
+
         """
         {'role': 'phase1', 'content': {'label': 'normal_log', 'confident_index': 1.0, 'reason': 'The log details system disk I/O statistics and does not show any suspicious activity, indicating a normal operational event.'}}
         """
-        # Para mandar mensaje en modo streaming
-        """
-        streaming_request = SendStreamingMessageRequest(
-            id=str(uuid4()), params=MessageSendParams(**send_message_payload)
-        )
-
-        stream_response = client.send_message_streaming(streaming_request)
-
-        async for chunk in stream_response:
-            print(chunk.model_dump(mode='json', exclude_none=True))
-        """
-
 
 
 if __name__ == '__main__':

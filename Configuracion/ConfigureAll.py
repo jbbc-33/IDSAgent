@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import subprocess
 from client_ports_constants import *
 from opensearchpy import OpenSearch
@@ -112,7 +113,7 @@ def comp2_config():
                 client2 = create_client(port=OSC_PORT2)
                 setup_pipeline(client=client2, path=MODEL_ID_PATH_2)
                 #time.sleep(200)
-                time.sleep(20)
+                time.sleep(150)
                 setup_ingestion(client=client2, train_path=TRAIN_CSV_2)
     
 

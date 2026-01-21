@@ -34,7 +34,8 @@ class AgentState(TypedDict):
 
 class GraphAgent:
 
-    def __init__(self, llmController : LLMController):
+    def __init__(self, llmController : LLMController, force_a2a : bool =False):
+        self.force_a2a = force_a2a
         self.llmController = llmController
         self.graph = self.makeGraph()
         self.agent = self.graph.compile()
@@ -272,7 +273,7 @@ class GraphAgent:
                 The network includes this services: a web server, cloud file share, mail servers, VPN gateway, DNS, internal intranet, a firewall, four internal employees, three remote employees, and three external users.
                 """
         response_format=""
-        used_rag = state[MESSAGES][-1]["role"] == "tool" and state[MESSAGES][-1]["content"] != "No result"
+        used_rag = state[MESSAGES][-1]["role"] == ROLE_NODE_EXECUTE_SELECTED_TOOL_SUCCESS and state[MESSAGES][-1]["content"] != "No result"
         # Caso en el que hay logs del RAG
         if used_rag:
             prompt=prompt+"You will be provided with a list of similar past logs with known labels and the similarity score, and a new log message with the source to classify"
@@ -647,15 +648,16 @@ class GraphAgent:
     async def node_final_answer(self, state: AgentState):
         print("Entering NODE: node_final_answer")
         # SOLO PARA VERSION FINAL, si ha ocurrido algun error en pasos intermedios devolvemos la ultima evaluacion valida, si no la hay, devolvemos el error
-        """if "error" in state[MESSAGES][-1]["role"]:
+        if "error" in state[MESSAGES][-1]["role"]:
             for message in state[MESSAGES]:
                 if message["role"] == ROLE_NODE_EVALUATOR_PHASE1_SUCCESS:
                     return {
+                        **state,
                         MESSAGES : [{
                             "role" : ROLE_NODE_EVALUATOR_PHASE1_SUCCESS,
                             "content" : message["content"]
                         }]
-                    }"""
+                    }
         return {
             **state
         }
@@ -684,7 +686,6 @@ class GraphAgent:
                 return NAME_NODE_FINAL_ANSWER
             # solo si el indice de seguridad es muy bajo consultamos a otro agente, para mayor eficiencia
             confident_index = state[MESSAGES][-1]["content"].get("confident_index", False)
-            return NAME_NODE_LOAD_AGENTS
             if confident_index:
                 try:
                     confident_index = float(confident_index)
@@ -693,6 +694,16 @@ class GraphAgent:
                 except Exception as e:
                     return NAME_NODE_FINAL_ANSWER
             return NAME_NODE_FINAL_ANSWER 
+        return NAME_NODE_FINAL_ANSWER
+    
+    def router_phase1_force_a2a(self, state : AgentState):
+        role1 = state[MESSAGES][0].get("role") # rol para saber si la consulta del log la hizo otro agente, pidiento una segunda opinion, o un usuario
+        role2 = state[MESSAGES][-1].get("role") # rol para saber si ha habido algun error en el estado anterior 
+        if role2 == ROLE_NODE_EVALUATOR_PHASE1_SUCCESS:
+            if role1 == 'agent':
+                # Si la consulta original la hizo un agente pidiendo una segunda opinion devolvemos el resultado de la consulta sin llegar a phase2 (evitando bucles infinitos)
+                return NAME_NODE_FINAL_ANSWER
+            return NAME_NODE_LOAD_AGENTS
         return NAME_NODE_FINAL_ANSWER
 
     def router_select_agent(self, state: AgentState):
@@ -743,10 +754,16 @@ class GraphAgent:
             NAME_NODE_EVALUATOR_PHASE1 : NAME_NODE_EVALUATOR_PHASE1
         })
         graph.add_edge(NAME_NODE_EXECUTE_SELECTED_TOOL, NAME_NODE_EVALUATOR_PHASE1)
-        graph.add_conditional_edges(NAME_NODE_EVALUATOR_PHASE1, self.router_phase1, {
-            NAME_NODE_LOAD_AGENTS : NAME_NODE_LOAD_AGENTS,
-            NAME_NODE_FINAL_ANSWER : NAME_NODE_FINAL_ANSWER
-        })
+        if self.force_a2a == False:
+            graph.add_conditional_edges(NAME_NODE_EVALUATOR_PHASE1, self.router_phase1, {
+                NAME_NODE_LOAD_AGENTS : NAME_NODE_LOAD_AGENTS,
+                NAME_NODE_FINAL_ANSWER : NAME_NODE_FINAL_ANSWER
+            })
+        else:
+            graph.add_conditional_edges(NAME_NODE_EVALUATOR_PHASE1, self.router_phase1_force_a2a, {
+                NAME_NODE_LOAD_AGENTS : NAME_NODE_LOAD_AGENTS,
+                NAME_NODE_FINAL_ANSWER : NAME_NODE_FINAL_ANSWER
+            })
         graph.add_conditional_edges(NAME_NODE_LOAD_AGENTS, self.router_load_agents, {
             NAME_NODE_SELECT_AGENT : NAME_NODE_SELECT_AGENT,
             NAME_NODE_FINAL_ANSWER : NAME_NODE_FINAL_ANSWER

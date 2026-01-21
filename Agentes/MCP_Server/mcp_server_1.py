@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from mcp.server.fastmcp import FastMCP
 from opensearchpy import OpenSearch
 from client_ports_constants import OSC_PORT1
@@ -11,7 +12,7 @@ mcp = FastMCP("Search logs for context in labeling new logs", port=PORT_MCP1)
 # ------------- CONSTANTES AUXILIARES --------------
 
 MODEL_ID_FROM_FILE_PATH = "/home/julio/Escritorio/otherTFG/PruebasMias/Proyecto/Configuracion/MODEL_ID_1.txt"
-MODEL_ID="Y4auzJoB8jvprHGJ2bFO"
+global MODEL_ID
 INDEX_NAME="russellmitchell-logs-cosine"
 
 
@@ -19,7 +20,9 @@ INDEX_NAME="russellmitchell-logs-cosine"
 
 def load_model_id():
     with open(MODEL_ID_FROM_FILE_PATH, 'r') as f:
-        MODEL_ID=f.readline()
+        model_id=f.readline()
+        return model_id
+    return None
         
 def neural_search(log_message : str, client : OpenSearch, model_id : str, source : str, k : int):
 
@@ -132,5 +135,7 @@ async def search_logs(log_message: str, source:str) -> str:
 
 
 if __name__ == "__main__":
-    load_model_id()
+    MODEL_ID=load_model_id()
+    if MODEL_ID != None:
+        print(f"model_id cargado correctamente: {MODEL_ID}")
     mcp.run(transport="streamable-http")

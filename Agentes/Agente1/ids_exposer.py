@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import uvicorn
 
 from a2a.server.apps import A2AStarletteApplication
@@ -59,7 +60,7 @@ if __name__ == '__main__':
     )
 
     request_handler = DefaultRequestHandler(
-        agent_executor=IDSAgentExecutor(),
+        agent_executor=IDSAgentExecutor(force_a2a=True), #Ponemos a true force_a2a para forzar la comunicacion con otros agentes, sino se hace de acorde a confident_index
         task_store=InMemoryTaskStore(),
     )
 
